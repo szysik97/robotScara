@@ -229,7 +229,7 @@ public class Projekt_JAVA extends JFrame {
 
         //obiekt odpowiedzialny za renderowanie
         Canvas3D canvas = new Canvas3D(conf);
-        canvas.setPreferredSize(new Dimension(600, 600));
+        canvas.setPreferredSize(new Dimension(800, 600));
 
         //upchanie wszystkiego w okienku
         Przyciski przyciskiListener = new Przyciski();
