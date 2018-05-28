@@ -36,7 +36,7 @@ import javax.vecmath.Vector3f;
 public class Projekt_JAVA extends JFrame {
 
     private JButton nagrywanie, odtwarzanie;
-    private JButton przycRam1L, przycRam1P, przycRam2L, przycRam2P;
+    private JButton przycRam1L, przycRam1P, przycRam2L, przycRam2P, przycChwytD, przycChwytG;
 
     //zmienne odpowiedzialne za nagrywanie i odtwarzanie ruchów robota
     private PrintWriter zapis;
@@ -49,15 +49,17 @@ public class Projekt_JAVA extends JFrame {
 
     //zmienne typow podst. zwiazane z zachowaniem i pozycja robota
     private int ustawienie1 = 0, ustawienie2 = 0;
+    private float ustawienie3 = 0.0f;
     private float pozWys = 0;
     private boolean czyTrzyma = false;
 
     private BranchGroup scena;
-    private TransformGroup transGrPodst, transGrObrot1;
+    private TransformGroup transGrPodst, transGrObrot1, transGrChwyt;
     private Transform3D obrotPodstawy = new Transform3D();
     private Transform3D obrot1 = new Transform3D();
     private Transform3D przesObrot1 = new Transform3D();
-
+    private Transform3D ruchChwytak = new Transform3D();
+    
     class ZadanieZapis extends TimerTask {
 
         String doZapisu;
@@ -66,7 +68,7 @@ public class Projekt_JAVA extends JFrame {
         public void run() {
             doZapisu = Integer.toString(ustawienie1) + ' '
                     + Integer.toString(ustawienie2) + ' '
-                    + Float.toString(pozWys) + ' '
+                    + Float.toString(ustawienie3) + ' '//pozWys
                     + Boolean.toString(czyTrzyma);
 
             try {
@@ -89,9 +91,11 @@ public class Projekt_JAVA extends JFrame {
 
                 ustawienie1 = Integer.parseInt(odczytane[0]);
                 ustawienie2 = Integer.parseInt(odczytane[1]);
+                ustawienie3 = Float.parseFloat(odczytane[2]);
                 przestawRamie1();
                 przestawRamie2();
-
+                przestawChwytak();
+                
                 if (!odczyt.hasNext()) {
                     odczyt.close();
                     czas.cancel();
@@ -146,9 +150,15 @@ public class Projekt_JAVA extends JFrame {
             } else if (klik == przycRam2L && ustawienie2 > -180) {
                 ustawienie2--;
                 przestawRamie2();
-            } else if (klik == przycRam2P && ustawienie1 < 180) {
+            } else if (klik == przycRam2P && ustawienie2 < 180) {
                 ustawienie2++;
                 przestawRamie2();
+            } else if (klik == przycChwytD && ustawienie3 > -1.6f) {
+                ustawienie3 -= 0.1f;
+                przestawChwytak();
+            } else if (klik == przycChwytG && ustawienie3 < 1.6f) {
+                ustawienie3 += 0.1f;
+                przestawChwytak();
             }
         }
     }
@@ -170,6 +180,12 @@ public class Projekt_JAVA extends JFrame {
             } else if (arg.getKeyCode() == KeyEvent.VK_RIGHT && ustawienie2 < 180) {
                 ustawienie2++;
                 przestawRamie2();
+            } else if(arg.getKeyCode() == KeyEvent.VK_DOWN && ustawienie3 > -1.6f) {
+                ustawienie3 -= 0.1f;
+                przestawChwytak();
+            } else if(arg.getKeyCode() == KeyEvent.VK_UP && ustawienie3 < 1.6f) {
+                ustawienie3 += 0.1f;
+                przestawChwytak();
             }
         }
 
@@ -194,6 +210,11 @@ public class Projekt_JAVA extends JFrame {
         transGrObrot1.setTransform(obrot1);
     }
 
+    private void przestawChwytak(){
+        ruchChwytak.setTranslation(new Vector3f(0.0f, ustawienie3, 0.0f));
+        transGrChwyt.setTransform(ruchChwytak);
+    }
+    
     private void nagrywanie() {
         try {
             zapis = new PrintWriter(sciezkaPliku);
@@ -245,19 +266,27 @@ public class Projekt_JAVA extends JFrame {
         przycRam2L.addActionListener(przyciskiListener);
         przycRam2P = new JButton("==>>");
         przycRam2P.addActionListener(przyciskiListener);
-
+        przycChwytD = new JButton("v|v");
+        przycChwytD.addActionListener(przyciskiListener);
+        przycChwytG = new JButton("^|^");
+        przycChwytG.addActionListener(przyciskiListener);
+        
+        
         JPanel panel1 = new JPanel(new BorderLayout());
         JPanel panel2 = new JPanel(new FlowLayout());
         JPanel panel3 = new JPanel(new FlowLayout());
         canvas.addKeyListener(new Klawisze());
         panel2.add(nagrywanie);
         panel2.add(odtwarzanie);
-        panel3.add(new JLabel("RAMIĘ 1"));
+        panel3.add(new JLabel("RAMIE 1"));
         panel3.add(przycRam1L);
         panel3.add(przycRam1P);
-        panel3.add(new JLabel("RAMIĘ 2"));
+        panel3.add(new JLabel("RAMIE 2"));
         panel3.add(przycRam2L);
         panel3.add(przycRam2P);
+        panel3.add(new JLabel("CHWYTAK"));
+        panel3.add(przycChwytD);
+        panel3.add(przycChwytG);
         panel1.add(panel2, BorderLayout.NORTH);
         panel1.add(canvas, BorderLayout.CENTER);
         panel1.add(panel3, BorderLayout.SOUTH);
@@ -383,6 +412,18 @@ public class Projekt_JAVA extends JFrame {
         transGrObrot1.addChild(trans_box1Ram2);
         transGrPodst.addChild(transGrObrot1);
 
+        //Chwytak - sam cylinder
+        Cylinder cy1Chwyt = new Cylinder(0.4f, 4f, wyglad);
+        Transform3D poz_cy1Chwyt = new Transform3D();
+        poz_cy1Chwyt.set(new Vector3f(0.0f, 4.2f, 8.0f));
+        TransformGroup trans_cy1Chwyt = new TransformGroup(poz_cy1Chwyt);
+        trans_cy1Chwyt.addChild(cy1Chwyt);
+        
+        transGrChwyt = new TransformGroup();
+        transGrChwyt.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
+        transGrChwyt.addChild(trans_cy1Chwyt);
+        transGrObrot1.addChild(transGrChwyt);
+        
         return scena;
     }
 
