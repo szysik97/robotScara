@@ -413,8 +413,12 @@ public class Projekt_JAVA extends JFrame {
         simpleU.getViewingPlatform().setViewPlatformBehavior(orbit);
 
         //rozpoczecie komunikacji z Arduino
-        arduino = new KomunikacjaArduino("COM3", 9600);
-        arduino.inicjalizacja();
+        try {
+            arduino = new KomunikacjaArduino("COM3", 9600);
+            arduino.inicjalizacja();
+        } catch(Exception e) {
+            System.err.println(e.getMessage());
+        }
     }
 
     private BranchGroup nowaScena() {
