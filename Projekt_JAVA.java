@@ -34,6 +34,7 @@ import javax.media.j3d.Shape3D;
 import javax.media.j3d.SpotLight;
 import javax.media.j3d.Transform3D;
 import javax.media.j3d.TransformGroup;
+import javax.media.j3d.TransformInterpolator;
 import javax.media.j3d.WakeupCriterion;
 import javax.media.j3d.WakeupOnCollisionEntry;
 import javax.media.j3d.WakeupOnCollisionMovement;
@@ -81,7 +82,9 @@ public class Projekt_JAVA extends JFrame {
     private Transform3D ruchChwytak = new Transform3D();
     private Transform3D ruchKrazek = new Transform3D();
     private Transform3D obrotKrazek = new Transform3D();
-	
+    private Transform3D obrotKrazek2a = new Transform3D();
+    private Transform3D obrotKrazek2b = new Transform3D();
+    
     private class ZadanieZapis extends TimerTask {
 
         String doZapisu;
@@ -91,7 +94,7 @@ public class Projekt_JAVA extends JFrame {
             doZapisu = Integer.toString(ustawienie1) + ' '
                     + Integer.toString(ustawienie2) + ' '
                     + Float.toString(ustawienie3) + ' '
-					+ Float.toString(ustawienieKrazekPion) + ' '
+                    + Float.toString(ustawienieKrazekPion) + ' '
                     + Boolean.toString(czyTrzyma);
 
             try {
@@ -150,6 +153,7 @@ public class Projekt_JAVA extends JFrame {
                 ustawienie2 = Integer.parseInt(odczytane[1]);
                 ustawienie3 = Float.parseFloat(odczytane[2]);
 		ustawienieKrazekPion = Float.parseFloat(odczytane[3]);
+                czyTrzyma = Boolean.parseBoolean(odczytane[4]);
                 przestawRamie1();
                 przestawRamie2();
                 przestawChwytak();
@@ -344,10 +348,12 @@ public class Projekt_JAVA extends JFrame {
 
     private void przestawRamie2() {
         obrot1.rotY(Math.toRadians(ustawienie2));
-        przesObrot1.setTranslation(new Vector3f(0.0f, 0.0f, 0.0f));
+        obrot1.setTranslation(new Vector3f(0.0f, 0.0f, 4.0f));
+        transGrObrot1.setTransform(obrot1);
+        przesObrot1.setTranslation(new Vector3f(0.0f, 0.0f, -4.0f));
         obrot1.mul(przesObrot1);
         transGrObrot1.setTransform(obrot1);
-	//dodac przestawienie krazka po naprawie ramienia
+        przestawKrazek();
     }
 
     private void przestawChwytak() {
@@ -359,12 +365,19 @@ public class Projekt_JAVA extends JFrame {
     private void przestawKrazek(){
 	if(czyTrzyma == true){
             obrotKrazek.rotY(Math.toRadians(ustawienie1));
-            ruchKrazek.setTranslation(new Vector3f(0.0f, ustawienieKrazekPion, 0.0f));
+            ruchKrazek.setTranslation(new Vector3f(0.0f, ustawienieKrazekPion, 0.0f));  
             obrotKrazek.mul(ruchKrazek);
+            
+            obrotKrazek2a.rotY(Math.toRadians(ustawienie2));
+            obrotKrazek2a.setTranslation(new Vector3f(0.0f, 0.0f, 4.0f));
+            obrotKrazek2b.setTranslation(new Vector3f(0.0f, 0.0f, -4.0f));
+            obrotKrazek2a.mul(obrotKrazek2b);
+            
+            obrotKrazek.mul(obrotKrazek2a);
             transGrKrazek.setTransform(obrotKrazek);
         }
     }
-	
+
     private void nagrywanie() {
         try {
             zapis = new PrintWriter(SCIEZKA_PLIKU);
@@ -556,7 +569,7 @@ public class Projekt_JAVA extends JFrame {
         transGrPodst.setCollidable(false);
         scena.addChild(transGrPodst);
 
-        //utworzenie ramiena numer 1 skladajacego sie z
+        //utworzenie ramiena numer 2 skladajacego sie z
         //dwoch walcow oraz jednego prostopadloscianu
         Cylinder cy1Ram2 = new Cylinder(0.6f, 0.7f, wyglad);
         Transform3D poz_cy1Ram2 = new Transform3D();
