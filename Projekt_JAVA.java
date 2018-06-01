@@ -49,8 +49,14 @@ import javax.vecmath.Vector3f;
 
 public class Projekt_JAVA extends JFrame {
 
+    //przyciski GUI
     private JButton nagrywanie, odtwarzanie;
     private JButton przycRam1L, przycRam1P, przycRam2L, przycRam2P, przycChwytD, przycChwytG;
+    private JButton sposobSterowania;
+
+    //obiekt do komunikacji z Arduino za pomoca SerialPortu
+    private KomunikacjaArduino arduino;
+    private boolean sterowanieArduino = false;
 
     //zmienne odpowiedzialne za nagrywanie i odtwarzanie ruchów robota
     private PrintWriter zapis;
@@ -58,14 +64,15 @@ public class Projekt_JAVA extends JFrame {
     private Timer czas;
     private boolean trwaZapis = false;
     private boolean trwaOdczyt = false;
-    private final int czasTimera = 50;
-    private final String sciezkaPliku = "nagranie.txt";
+    private final int CZAS_TIMERA = 50;
+    private final String SCIEZKA_PLIKU = "nagranie.txt";
 
     //zmienne typow podst. zwiazane z zachowaniem i pozycja robota
     private int ustawienie1 = 0, ustawienie2 = 0;
     private float ustawienie3 = 0.0f, ustawienieKrazekPion = 0.0f;
     private boolean czyTrzyma = false;
 
+    //zmienne odpowiedzialne na grafike 3D
     private BranchGroup scena;
     private TransformGroup transGrPodst, transGrObrot1, transGrChwyt, transGrKrazek;
     private Transform3D obrotPodstawy = new Transform3D();
@@ -74,8 +81,8 @@ public class Projekt_JAVA extends JFrame {
     private Transform3D ruchChwytak = new Transform3D();
     private Transform3D ruchKrazek = new Transform3D();
     private Transform3D obrotKrazek = new Transform3D();
-    
-    class ZadanieZapis extends TimerTask {
+	
+    private class ZadanieZapis extends TimerTask {
 
         String doZapisu;
 
@@ -84,18 +91,52 @@ public class Projekt_JAVA extends JFrame {
             doZapisu = Integer.toString(ustawienie1) + ' '
                     + Integer.toString(ustawienie2) + ' '
                     + Float.toString(ustawienie3) + ' '
-                    + Float.toString(ustawienieKrazekPion) + ' '
+					+ Float.toString(ustawienieKrazekPion) + ' '
                     + Boolean.toString(czyTrzyma);
 
             try {
                 zapis.println(doZapisu);
             } catch (Exception e) {
-                System.out.println(e.getMessage());
+                System.err.println(e.getMessage());
             }
         }
     }
 
-    class ZadanieOdczyt extends TimerTask {
+    private class ZadanieArduino extends TimerTask {
+
+        int odczytane;
+
+        @Override
+        public void run() {
+
+            try {
+
+                odczytane = arduino.odczytaj();
+
+                if (odczytane != 0) {
+                    if (odczytane == '1')
+                        przestawRamie1Lewo();
+                    else if (odczytane == '2')
+                        przestawRamie1Prawo();
+                    else if (odczytane == '3')
+                        przestawRamie2Lewo();
+                    else if (odczytane == '4')
+                        przestawRamie2Prawo();
+                    else if (odczytane == '5')
+                        przestawChwytakGora();
+                    else if (odczytane == '6')
+                        przestawChwytakDol();
+
+                    arduino.resetujOdczytane();
+                }
+
+            } catch (Exception e) {
+                System.err.println(e.getMessage());
+            }
+        }
+    }
+
+    private class ZadanieOdczyt extends TimerTask {
 
         String[] odczytane;
 
@@ -108,31 +149,33 @@ public class Projekt_JAVA extends JFrame {
                 ustawienie1 = Integer.parseInt(odczytane[0]);
                 ustawienie2 = Integer.parseInt(odczytane[1]);
                 ustawienie3 = Float.parseFloat(odczytane[2]);
-                ustawienieKrazekPion = Float.parseFloat(odczytane[3]);
+		ustawienieKrazekPion = Float.parseFloat(odczytane[3]);
                 przestawRamie1();
                 przestawRamie2();
                 przestawChwytak();
-                
+
                 if (!odczyt.hasNext()) {
                     odczyt.close();
                     czas.cancel();
                     trwaOdczyt = false;
                     odtwarzanie.setText("Odtwórz nagranie");
                     nagrywanie.setEnabled(true);
+                    sposobSterowania.setEnabled(true);
+                    przyciskiDostepnosc(true);
                 }
             } catch (Exception e) {
-                System.out.println(e.getMessage());
+                System.err.println(e.getMessage());
             }
         }
     }
 
-    class Przyciski implements ActionListener {
+    private class Przyciski implements ActionListener {
 
         @Override
         public void actionPerformed(ActionEvent arg) {
             JButton klik = (JButton) arg.getSource();
 
-            if (klik == nagrywanie && !trwaOdczyt) {
+            if (klik == nagrywanie && !trwaOdczyt)
                 if (!trwaZapis) {
                     trwaZapis = true;
                     nagrywanie.setText("Zakończ nagrywanie");
@@ -145,11 +188,13 @@ public class Projekt_JAVA extends JFrame {
                     nagrywanie.setText("Rozpocznij nagrywanie");
                     odtwarzanie.setEnabled(true);
                 }
-            } else if (klik == odtwarzanie && !trwaZapis) {
+            else if (klik == odtwarzanie && !trwaZapis)
                 if (!trwaOdczyt) {
                     trwaOdczyt = true;
                     odtwarzanie.setText("Zakończ odtwarzanie");
                     nagrywanie.setEnabled(false);
+                    sposobSterowania.setEnabled(false);
+                    przyciskiDostepnosc(false);
                     odtwarzanie();
                 } else {
                     trwaOdczyt = false;
@@ -157,59 +202,55 @@ public class Projekt_JAVA extends JFrame {
                     odczyt.close();
                     odtwarzanie.setText("Odtwórz nagranie");
                     nagrywanie.setEnabled(true);
+                    sposobSterowania.setEnabled(true);
+                    przyciskiDostepnosc(true);
                 }
-            } else if (klik == przycRam1L && ustawienie1 > -180) {
-                ustawienie1--;
-                przestawRamie1();
-            } else if (klik == przycRam1P && ustawienie1 < 180) {
-                ustawienie1++;
-                przestawRamie1();
-            } else if (klik == przycRam2L && ustawienie2 > -180) {
-                ustawienie2--;
-                przestawRamie2();
-            } else if (klik == przycRam2P && ustawienie2 < 180) {
-                ustawienie2++;
-                przestawRamie2();
-            } else if (klik == przycChwytD && ustawienie3 > -1.6f) {
-                ustawienie3 -= 0.1f;
-                przestawChwytak();
-            } else if (klik == przycChwytG && ustawienie3 < 1.6f) {
-                ustawienie3 += 0.1f;
-                przestawChwytak();
-            }
+            else if (klik == przycRam1L)
+                przestawRamie1Lewo();
+            else if (klik == przycRam1P)
+                przestawRamie1Prawo();
+            else if (klik == przycRam2L)
+                przestawRamie2Lewo();
+            else if (klik == przycRam2P)
+                przestawRamie2Prawo();
+            else if (klik == przycChwytD)
+                przestawChwytakDol();
+            else if (klik == przycChwytG)
+                przestawChwytakGora();
+            else if (klik == sposobSterowania)
+                if (!sterowanieArduino) {
+                    sterowanieArduino = true;
+                    przyciskiDostepnosc(false);
+
+                    czas = new Timer();
+                    czas.scheduleAtFixedRate(new ZadanieArduino(), 0, 50);
+                    sposobSterowania.setText("Zmień sterowanie na: klawiatuta/GUI");
+                } else {
+                    sterowanieArduino = false;
+                    czas.cancel();
+                    przyciskiDostepnosc(true);
+                    sposobSterowania.setText("Zmień sterowanie na: Arduino");
+                }
         }
     }
 
-    class Klawisze implements KeyListener {
+    private class Klawisze implements KeyListener {
 
         @Override
         public void keyPressed(KeyEvent arg) {
 
-            if (arg.getKeyCode() == KeyEvent.VK_A && ustawienie1 > -180) {
-                ustawienie1--;
-                przestawRamie1();
-            } else if (arg.getKeyCode() == KeyEvent.VK_D && ustawienie1 < 180) {
-                ustawienie1++;
-                przestawRamie1();
-            } else if (arg.getKeyCode() == KeyEvent.VK_LEFT && ustawienie2 > -180) {
-                ustawienie2--;
-                przestawRamie2();
-            } else if (arg.getKeyCode() == KeyEvent.VK_RIGHT && ustawienie2 < 180) {
-                ustawienie2++;
-                przestawRamie2();
-            } else if(arg.getKeyCode() == KeyEvent.VK_DOWN && ustawienie3 > -1.6f) {
-                ustawienie3 -= 0.1f;
-                if(czyTrzyma == true){
-                    ustawienieKrazekPion -= 0.1f;
-                }
-                przestawChwytak();
-            } else if(arg.getKeyCode() == KeyEvent.VK_UP && ustawienie3 < 1.6f) {
-                ustawienie3 += 0.1f;
-                if(czyTrzyma == true){
-                    ustawienieKrazekPion += 0.1f;
-                }
-                przestawChwytak();
-            }
+            if (arg.getKeyCode() == KeyEvent.VK_A)
+                przestawRamie1Lewo();
+            else if (arg.getKeyCode() == KeyEvent.VK_D)
+                przestawRamie1Prawo();
+            else if (arg.getKeyCode() == KeyEvent.VK_LEFT)
+                przestawRamie2Lewo();
+            else if (arg.getKeyCode() == KeyEvent.VK_RIGHT)
+                przestawRamie2Prawo();
+            else if (arg.getKeyCode() == KeyEvent.VK_DOWN)
+                przestawChwytakDol();
+            else if (arg.getKeyCode() == KeyEvent.VK_UP)
+                przestawChwytakGora();
         }
 
         @Override
@@ -220,8 +261,8 @@ public class Projekt_JAVA extends JFrame {
         public void keyTyped(KeyEvent arg) {
         }
     }
-
-    class Kolizja extends Behavior{
+	
+    private class Kolizja extends Behavior{
         
         private Cylinder ksztalt;
 
@@ -239,26 +280,66 @@ public class Projekt_JAVA extends JFrame {
         @Override
         public void processStimulus(Enumeration enmrtn) {
             WakeupCriterion kryterium = (WakeupCriterion) enmrtn.nextElement();
-
-                if(kryterium instanceof WakeupOnCollisionEntry) {
-                    
-                    System.out.print("Nastapila kolizja ");
-                    czyTrzyma = true;
-                }
+            if(kryterium instanceof WakeupOnCollisionEntry) {
+                System.out.print("Nastapila kolizja ");
+                czyTrzyma = true;
+            }
             
         }
     }
-    
+
+    private void przestawRamie1Lewo() {
+        if (ustawienie1 > -180) {
+            ustawienie1--;
+            przestawRamie1();
+        }
+    }
+
+    private void przestawRamie1Prawo() {
+        if (ustawienie1 < 180) {
+            ustawienie1++;
+            przestawRamie1();
+        }
+    }
+
+    private void przestawRamie2Lewo() {
+        if (ustawienie2 > -180) {
+            ustawienie2--;
+            przestawRamie2();
+        }
+    }
+
+    private void przestawRamie2Prawo() {
+        if (ustawienie2 < 180) {
+            ustawienie2++;
+            przestawRamie2();
+        }
+    }
+
+    private void przestawChwytakGora() {
+        if (ustawienie3 < 1.6f) {
+            ustawienie3 += 0.1f;
+            if(czyTrzyma == true){
+                ustawienieKrazekPion += 0.1f;
+            }
+            przestawChwytak();
+        }
+    }
+
+    private void przestawChwytakDol() {
+        if (ustawienie3 > -1.6f) {
+            ustawienie3 -= 0.1f;
+            if(czyTrzyma == true){
+                ustawienieKrazekPion -= 0.1f;
+            }
+            przestawChwytak();
+        }
+    }
+
     private void przestawRamie1() {
         obrotPodstawy.rotY(Math.toRadians(ustawienie1));
         transGrPodst.setTransform(obrotPodstawy);
-        if(czyTrzyma == true){
-            obrotKrazek.rotY(Math.toRadians(ustawienie1));
-            ruchKrazek.setTranslation(new Vector3f(0.0f, ustawienieKrazekPion, 0.0f));
-            obrotKrazek.mul(ruchKrazek);
-            transGrKrazek.setTransform(obrotKrazek);
-        }
-        
+        przestawKrazek();
     }
 
     private void przestawRamie2() {
@@ -266,49 +347,59 @@ public class Projekt_JAVA extends JFrame {
         przesObrot1.setTranslation(new Vector3f(0.0f, 0.0f, 0.0f));
         obrot1.mul(przesObrot1);
         transGrObrot1.setTransform(obrot1);
-        if(czyTrzyma == true){
-            //transGrKrazek.setTransform(obrot1);
-        }
-        
+	//dodac przestawienie krazka po naprawie ramienia
     }
 
-    private void przestawChwytak(){
+    private void przestawChwytak() {
         ruchChwytak.setTranslation(new Vector3f(0.0f, ustawienie3, 0.0f));
         transGrChwyt.setTransform(ruchChwytak);
-        if(czyTrzyma == true){
+        przestawKrazek();
+    }
+
+    private void przestawKrazek(){
+	if(czyTrzyma == true){
             obrotKrazek.rotY(Math.toRadians(ustawienie1));
             ruchKrazek.setTranslation(new Vector3f(0.0f, ustawienieKrazekPion, 0.0f));
             obrotKrazek.mul(ruchKrazek);
             transGrKrazek.setTransform(obrotKrazek);
         }
-        
     }
-    
+	
     private void nagrywanie() {
         try {
-            zapis = new PrintWriter(sciezkaPliku);
+            zapis = new PrintWriter(SCIEZKA_PLIKU);
 
             czas = new Timer();
-            czas.scheduleAtFixedRate(new ZadanieZapis(), 0, czasTimera);
+            czas.scheduleAtFixedRate(new ZadanieZapis(), 0, CZAS_TIMERA);
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.err.println(e.getMessage());
         }
+    }
+
+    private void przyciskiDostepnosc(boolean bln) {
+
+        przycRam1L.setEnabled(bln);
+        przycRam1P.setEnabled(bln);
+        przycRam2L.setEnabled(bln);
+        przycRam2P.setEnabled(bln);
+        przycChwytG.setEnabled(bln);
+        przycChwytD.setEnabled(bln);
     }
 
     private void odtwarzanie() {
-
         try {
-            odczyt = new Scanner(new File(sciezkaPliku));
+            odczyt = new Scanner(new File(SCIEZKA_PLIKU));
 
             czas = new Timer();
-            czas.scheduleAtFixedRate(new ZadanieOdczyt(), 0, czasTimera);
+            czas.scheduleAtFixedRate(new ZadanieOdczyt(), 0, CZAS_TIMERA);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.err.println(e.getMessage());
         }
     }
-    
+
     Projekt_JAVA() {
+
         //podstawowe utworzenie okna
         super("Robot typu SCARA");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -339,14 +430,16 @@ public class Projekt_JAVA extends JFrame {
         przycChwytD.addActionListener(przyciskiListener);
         przycChwytG = new JButton("^|^");
         przycChwytG.addActionListener(przyciskiListener);
-        
-        
+        sposobSterowania = new JButton("Zmień sterowanie na: Arduino");
+        sposobSterowania.addActionListener(przyciskiListener);
+
         JPanel panel1 = new JPanel(new BorderLayout());
         JPanel panel2 = new JPanel(new FlowLayout());
         JPanel panel3 = new JPanel(new FlowLayout());
         canvas.addKeyListener(new Klawisze());
         panel2.add(nagrywanie);
         panel2.add(odtwarzanie);
+        panel2.add(sposobSterowania);
         panel3.add(new JLabel("RAMIE 1"));
         panel3.add(przycRam1L);
         panel3.add(przycRam1P);
@@ -371,7 +464,7 @@ public class Projekt_JAVA extends JFrame {
 
         //dodanie obserwatora
         Transform3D przesuniecie_obserwatora = new Transform3D();
-        przesuniecie_obserwatora.set(new Vector3f(0.0f, 3.0f, 15.0f));//0 3 15
+        przesuniecie_obserwatora.set(new Vector3f(0.0f, 3.0f, 23.0f));
 
         SimpleUniverse simpleU = new SimpleUniverse(canvas);
         simpleU.getViewingPlatform().getViewPlatformTransform().setTransform(przesuniecie_obserwatora);
@@ -381,6 +474,14 @@ public class Projekt_JAVA extends JFrame {
         OrbitBehavior orbit = new OrbitBehavior(canvas, OrbitBehavior.REVERSE_ROTATE);
         orbit.setSchedulingBounds(new BoundingSphere());
         simpleU.getViewingPlatform().setViewPlatformBehavior(orbit);
+
+        //rozpoczecie komunikacji z Arduino
+        try {
+            arduino = new KomunikacjaArduino("COM3", 9600);
+            arduino.inicjalizacja();
+        } catch(Exception e) {
+            System.err.println(e.getMessage());
+        }
     }
 
     public BranchGroup nowaScena() {
