@@ -1,9 +1,6 @@
-package projekt_java;
 
 import com.sun.j3d.utils.behaviors.vp.OrbitBehavior;
-import com.sun.j3d.utils.geometry.ColorCube;
 import com.sun.j3d.utils.geometry.Cylinder;
-import com.sun.j3d.utils.geometry.Sphere;
 import com.sun.j3d.utils.universe.SimpleUniverse;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -21,23 +18,16 @@ import java.util.TimerTask;
 import java.util.Timer;
 import javax.media.j3d.Appearance;
 import javax.media.j3d.Behavior;
-import javax.media.j3d.BoundingBox;
-import javax.media.j3d.BoundingPolytope;
 import javax.media.j3d.BoundingSphere;
 import javax.media.j3d.Bounds;
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Canvas3D;
 import javax.media.j3d.ColoringAttributes;
-import javax.media.j3d.Material;
-import javax.media.j3d.Node;
-import javax.media.j3d.Shape3D;
 import javax.media.j3d.SpotLight;
 import javax.media.j3d.Transform3D;
 import javax.media.j3d.TransformGroup;
-import javax.media.j3d.TransformInterpolator;
 import javax.media.j3d.WakeupCriterion;
 import javax.media.j3d.WakeupOnCollisionEntry;
-import javax.media.j3d.WakeupOnCollisionMovement;
 import javax.media.j3d.WakeupOnCollisionExit;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -54,6 +44,7 @@ public class Projekt_JAVA extends JFrame {
     private JButton nagrywanie, odtwarzanie;
     private JButton przycRam1L, przycRam1P, przycRam2L, przycRam2P, przycChwytD, przycChwytG;
     private JButton sposobSterowania;
+    private JButton zakonczTrzymanie;
 
     //obiekt do komunikacji z Arduino za pomoca SerialPortu
     private KomunikacjaArduino arduino;
@@ -72,6 +63,9 @@ public class Projekt_JAVA extends JFrame {
     private int ustawienie1 = 0, ustawienie2 = 0;
     private float ustawienie3 = 0.0f, ustawienieKrazekPion = 0.0f;
     private boolean czyTrzyma = false;
+    private boolean czySpada = false;
+    private int ustawienie1Spadanie, ustawienie2Spadanie;
+    private int ustawienie1Odtwarzanie, ustawienie2Odtwarzanie;
 
     //zmienne odpowiedzialne na grafike 3D
     private BranchGroup scena;
@@ -84,7 +78,7 @@ public class Projekt_JAVA extends JFrame {
     private Transform3D obrotKrazek = new Transform3D();
     private Transform3D obrotKrazek2a = new Transform3D();
     private Transform3D obrotKrazek2b = new Transform3D();
-    
+
     private class ZadanieZapis extends TimerTask {
 
         String doZapisu;
@@ -95,7 +89,10 @@ public class Projekt_JAVA extends JFrame {
                     + Integer.toString(ustawienie2) + ' '
                     + Float.toString(ustawienie3) + ' '
                     + Float.toString(ustawienieKrazekPion) + ' '
-                    + Boolean.toString(czyTrzyma);
+                    + Boolean.toString(czyTrzyma) + ' '
+                    + Boolean.toString(czySpada) + ' '
+                    + Integer.toString(ustawienie1Spadanie) + ' '
+                    + Integer.toString(ustawienie2Spadanie);
 
             try {
                 zapis.println(doZapisu);
@@ -129,12 +126,28 @@ public class Projekt_JAVA extends JFrame {
                         przestawChwytakGora();
                     else if (odczytane == '6')
                         przestawChwytakDol();
+                    else if (odczytane == '7')
+                        wypuszczanie();
 
                     arduino.resetujOdczytane();
                 }
 
             } catch (Exception e) {
                 System.err.println(e.getMessage());
+            }
+        }
+    }
+
+    private class Grawitacja extends TimerTask {
+
+        @Override
+        public void run() {
+            if (ustawienieKrazekPion > 0.09f) {
+                ustawienieKrazekPion -= 0.1f;
+                przestawKrazek(ustawienie1Spadanie, ustawienie2Spadanie);
+            } else {
+                czySpada = false;
+                this.cancel();
             }
         }
     }
@@ -152,8 +165,12 @@ public class Projekt_JAVA extends JFrame {
                 ustawienie1 = Integer.parseInt(odczytane[0]);
                 ustawienie2 = Integer.parseInt(odczytane[1]);
                 ustawienie3 = Float.parseFloat(odczytane[2]);
-		ustawienieKrazekPion = Float.parseFloat(odczytane[3]);
+                ustawienieKrazekPion = Float.parseFloat(odczytane[3]);
                 czyTrzyma = Boolean.parseBoolean(odczytane[4]);
+                czySpada = Boolean.parseBoolean(odczytane[5]);
+                ustawienie1Spadanie = Integer.parseInt(odczytane[6]);
+                ustawienie2Spadanie = Integer.parseInt(odczytane[7]);
+
                 przestawRamie1();
                 przestawRamie2();
                 przestawChwytak();
@@ -235,6 +252,8 @@ public class Projekt_JAVA extends JFrame {
                     przyciskiDostepnosc(true);
                     sposobSterowania.setText("Zmień sterowanie na: Arduino");
                 }
+            else if (klik == zakonczTrzymanie)
+                wypuszczanie();
         }
     }
 
@@ -255,6 +274,8 @@ public class Projekt_JAVA extends JFrame {
                 przestawChwytakDol();
             else if (arg.getKeyCode() == KeyEvent.VK_UP)
                 przestawChwytakGora();
+            else if (arg.getKeyCode() == KeyEvent.VK_SPACE)
+                wypuszczanie();
         }
 
         @Override
@@ -265,10 +286,12 @@ public class Projekt_JAVA extends JFrame {
         public void keyTyped(KeyEvent arg) {
         }
     }
-	
-    private class Kolizja extends Behavior{
-        
+
+    private class Kolizja extends Behavior {
+
         private Cylinder ksztalt;
+        private WakeupOnCollisionEntry zdarzenieKolizja;
+        private WakeupOnCollisionExit zdarzenieKoniecKolizji;
 
         public Kolizja(Cylinder ksztalt, Bounds wiezy) {
             this.ksztalt = ksztalt;
@@ -278,17 +301,24 @@ public class Projekt_JAVA extends JFrame {
 
         @Override
         public void initialize() {
-            wakeupOn(new WakeupOnCollisionEntry(ksztalt));
+            zdarzenieKolizja = new WakeupOnCollisionEntry(ksztalt);
+            zdarzenieKoniecKolizji = new WakeupOnCollisionExit(ksztalt);
+            wakeupOn(zdarzenieKolizja);
         }
 
         @Override
         public void processStimulus(Enumeration enmrtn) {
+
             WakeupCriterion kryterium = (WakeupCriterion) enmrtn.nextElement();
-            if(kryterium instanceof WakeupOnCollisionEntry) {
-                System.out.print("Nastapila kolizja ");
-                czyTrzyma = true;
-            }
-            
+            if (kryterium instanceof WakeupOnCollisionEntry) {
+                wakeupOn(zdarzenieKoniecKolizji);
+                if (!trwaOdczyt) {
+                    czyTrzyma = true;
+                    zakonczTrzymanie.setEnabled(true);
+                }
+            } else if (kryterium instanceof WakeupOnCollisionExit)
+                wakeupOn(zdarzenieKolizja);
+
         }
     }
 
@@ -307,14 +337,14 @@ public class Projekt_JAVA extends JFrame {
     }
 
     private void przestawRamie2Lewo() {
-        if (ustawienie2 > -180) {
+        if (ustawienie2 > -140) {
             ustawienie2--;
             przestawRamie2();
         }
     }
 
     private void przestawRamie2Prawo() {
-        if (ustawienie2 < 180) {
+        if (ustawienie2 < 140) {
             ustawienie2++;
             przestawRamie2();
         }
@@ -323,19 +353,17 @@ public class Projekt_JAVA extends JFrame {
     private void przestawChwytakGora() {
         if (ustawienie3 < 1.6f) {
             ustawienie3 += 0.1f;
-            if(czyTrzyma == true){
+            if (czyTrzyma == true)
                 ustawienieKrazekPion += 0.1f;
-            }
             przestawChwytak();
         }
     }
 
     private void przestawChwytakDol() {
-        if (ustawienie3 > -1.6f) {
+        if (ustawienie3 > -1.7f) {
             ustawienie3 -= 0.1f;
-            if(czyTrzyma == true){
+            if (czyTrzyma == true)
                 ustawienieKrazekPion -= 0.1f;
-            }
             przestawChwytak();
         }
     }
@@ -343,7 +371,7 @@ public class Projekt_JAVA extends JFrame {
     private void przestawRamie1() {
         obrotPodstawy.rotY(Math.toRadians(ustawienie1));
         transGrPodst.setTransform(obrotPodstawy);
-        przestawKrazek();
+        przestawKrazek(ustawienie1, ustawienie2);
     }
 
     private void przestawRamie2() {
@@ -353,32 +381,37 @@ public class Projekt_JAVA extends JFrame {
         przesObrot1.setTranslation(new Vector3f(0.0f, 0.0f, -4.0f));
         obrot1.mul(przesObrot1);
         transGrObrot1.setTransform(obrot1);
-        przestawKrazek();
+        przestawKrazek(ustawienie1, ustawienie2);
     }
 
     private void przestawChwytak() {
         ruchChwytak.setTranslation(new Vector3f(0.0f, ustawienie3, 0.0f));
         transGrChwyt.setTransform(ruchChwytak);
-        przestawKrazek();
+        przestawKrazek(ustawienie1, ustawienie2);
     }
 
-    private void przestawKrazek(){
-	if(czyTrzyma == true){
-            obrotKrazek.rotY(Math.toRadians(ustawienie1));
-            ruchKrazek.setTranslation(new Vector3f(0.0f, ustawienieKrazekPion, 0.0f));  
+    private void przestawKrazek(int ustaw1, int ustaw2) {
+
+        if (czyTrzyma || czySpada || trwaOdczyt) {
+
+            obrotKrazek.rotY(Math.toRadians(ustaw1));
+            obrotKrazek2a.rotY(Math.toRadians(ustaw2));
+            ruchKrazek.setTranslation(new Vector3f(0.0f, ustawienieKrazekPion, 0.0f));
             obrotKrazek.mul(ruchKrazek);
-            
-            obrotKrazek2a.rotY(Math.toRadians(ustawienie2));
             obrotKrazek2a.setTranslation(new Vector3f(0.0f, 0.0f, 4.0f));
             obrotKrazek2b.setTranslation(new Vector3f(0.0f, 0.0f, -4.0f));
             obrotKrazek2a.mul(obrotKrazek2b);
-            
+
             obrotKrazek.mul(obrotKrazek2a);
             transGrKrazek.setTransform(obrotKrazek);
         }
     }
 
     private void nagrywanie() {
+
+        ustawienie1Odtwarzanie = ustawienie1;
+        ustawienie2Odtwarzanie = ustawienie2;
+
         try {
             zapis = new PrintWriter(SCIEZKA_PLIKU);
 
@@ -390,6 +423,17 @@ public class Projekt_JAVA extends JFrame {
         }
     }
 
+    private void wypuszczanie() {
+        czySpada = true;
+        czyTrzyma = false;
+        ustawienie1Spadanie = ustawienie1;
+        ustawienie2Spadanie = ustawienie2;
+
+        Timer timer = new Timer();
+        timer.scheduleAtFixedRate(new Grawitacja(), 0, 80);
+        zakonczTrzymanie.setEnabled(false);
+    }
+
     private void przyciskiDostepnosc(boolean bln) {
 
         przycRam1L.setEnabled(bln);
@@ -398,9 +442,15 @@ public class Projekt_JAVA extends JFrame {
         przycRam2P.setEnabled(bln);
         przycChwytG.setEnabled(bln);
         przycChwytD.setEnabled(bln);
+        zakonczTrzymanie.setEnabled(bln);
     }
 
     private void odtwarzanie() {
+
+        ustawienie1 = ustawienie1Odtwarzanie;
+        ustawienie2 = ustawienie2Odtwarzanie;
+        przestawKrazek(ustawienie1Odtwarzanie, ustawienie2Odtwarzanie);
+
         try {
             odczyt = new Scanner(new File(SCIEZKA_PLIKU));
 
@@ -443,6 +493,9 @@ public class Projekt_JAVA extends JFrame {
         przycChwytD.addActionListener(przyciskiListener);
         przycChwytG = new JButton("^|^");
         przycChwytG.addActionListener(przyciskiListener);
+        zakonczTrzymanie = new JButton("Puść obiekt");
+        zakonczTrzymanie.addActionListener(przyciskiListener);
+        zakonczTrzymanie.setEnabled(false);
         sposobSterowania = new JButton("Zmień sterowanie na: Arduino");
         sposobSterowania.addActionListener(przyciskiListener);
 
@@ -462,6 +515,7 @@ public class Projekt_JAVA extends JFrame {
         panel3.add(new JLabel("CHWYTAK"));
         panel3.add(przycChwytD);
         panel3.add(przycChwytG);
+        panel3.add(zakonczTrzymanie);
         panel1.add(panel2, BorderLayout.NORTH);
         panel1.add(canvas, BorderLayout.CENTER);
         panel1.add(panel3, BorderLayout.SOUTH);
@@ -477,10 +531,13 @@ public class Projekt_JAVA extends JFrame {
 
         //dodanie obserwatora
         Transform3D przesuniecie_obserwatora = new Transform3D();
-        przesuniecie_obserwatora.set(new Vector3f(0.0f, 3.0f, 23.0f));
+        Transform3D obrot_obserwatora = new Transform3D();
+        obrot_obserwatora.rotY(Math.PI / 4);
+        przesuniecie_obserwatora.set(new Vector3f(0.0f, 3.0f, 25.0f));
+        obrot_obserwatora.mul(przesuniecie_obserwatora);
 
         SimpleUniverse simpleU = new SimpleUniverse(canvas);
-        simpleU.getViewingPlatform().getViewPlatformTransform().setTransform(przesuniecie_obserwatora);
+        simpleU.getViewingPlatform().getViewPlatformTransform().setTransform(obrot_obserwatora);
         simpleU.addBranchGraph(scena);
 
         //obracanie i zoom za pomoca myszki
@@ -492,7 +549,7 @@ public class Projekt_JAVA extends JFrame {
         try {
             arduino = new KomunikacjaArduino("COM3", 9600);
             arduino.inicjalizacja();
-        } catch(Exception e) {
+        } catch (Exception e) {
             System.err.println(e.getMessage());
         }
     }
@@ -513,18 +570,20 @@ public class Projekt_JAVA extends JFrame {
         swiatlo.setInfluencingBounds(granica);
         scena.addChild(swiatlo);
 
-        //utworzenie nowego materialu
+        //nowy material - robot
         Appearance wyglad = new Appearance();
-        Material material = new Material(
-                new Color3f(0.2f, 0.0f, 0.0f), //ambient
-                new Color3f(0.0f, 0.0f, 0.6f), //emmisive
-                new Color3f(0.6f, 0.0f, 0.0f), //diffuse
-                new Color3f(1.0f, 1.0f, 1.0f), //specular
-                50.0f);                                 //blyszczenie
-        ColoringAttributes kolor = new ColoringAttributes();
-        kolor.setShadeModel(ColoringAttributes.SHADE_GOURAUD);
-        wyglad.setMaterial(material);
-        wyglad.setColoringAttributes(kolor);
+        wyglad.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f,
+                ColoringAttributes.NICEST));
+
+        //nowy material - podloga
+        Appearance wygladPodloga = new Appearance();
+        wygladPodloga.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.0f,
+                ColoringAttributes.NICEST));
+
+        //nowy material - krazek
+        Appearance wygladKrazek = new Appearance();
+        wygladKrazek.setColoringAttributes(new ColoringAttributes(0.8f, 0.0f, 0.1f,
+                ColoringAttributes.NICEST));
 
         //utworzenie podstawy robota
         Cylinder podstawa1 = new Cylinder(1.2f, 0.7f, wyglad);
@@ -573,19 +632,19 @@ public class Projekt_JAVA extends JFrame {
         //dwoch walcow oraz jednego prostopadloscianu
         Cylinder cy1Ram2 = new Cylinder(0.6f, 0.7f, wyglad);
         Transform3D poz_cy1Ram2 = new Transform3D();
-        poz_cy1Ram2.set(new Vector3f(0.0f, 4.2f, 4.0f));
+        poz_cy1Ram2.set(new Vector3f(0.0f, 4.3f, 4.0f));
         TransformGroup trans_cy1Ram2 = new TransformGroup(poz_cy1Ram2);
         trans_cy1Ram2.addChild(cy1Ram2);
 
         Cylinder cy2Ram2 = new Cylinder(0.6f, 0.7f, wyglad);
         Transform3D poz_cy2Ram2 = new Transform3D();
-        poz_cy2Ram2.set(new Vector3f(0.0f, 4.2f, 8.0f));
+        poz_cy2Ram2.set(new Vector3f(0.0f, 4.3f, 8.0f));
         TransformGroup trans_cy2Ram2 = new TransformGroup(poz_cy2Ram2);
         trans_cy2Ram2.addChild(cy2Ram2);
 
         com.sun.j3d.utils.geometry.Box box1Ram2 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wyglad);
         Transform3D poz_box1Ram2 = new Transform3D();
-        poz_box1Ram2.set(new Vector3f(0.0f, 4.2f, 6.0f));
+        poz_box1Ram2.set(new Vector3f(0.0f, 4.3f, 6.0f));
         TransformGroup trans_box1Ram2 = new TransformGroup(poz_box1Ram2);
         trans_box1Ram2.addChild(box1Ram2);
 
@@ -597,30 +656,38 @@ public class Projekt_JAVA extends JFrame {
         transGrObrot1.setCollidable(false);
         transGrPodst.addChild(transGrObrot1);
 
+        //podloga
+        Cylinder podloga = new Cylinder(10.0f, 0.2f, wygladPodloga);
+        Transform3D poz_podloga = new Transform3D();
+        poz_podloga.set(new Vector3f(0.0f, -0.35f, 0.0f));
+        TransformGroup trans_podloga = new TransformGroup(poz_podloga);
+        trans_podloga.addChild(podloga);
+        scena.addChild(trans_podloga);
+
         //Chwytak - sam cylinder
-        Cylinder cy1Chwyt = new Cylinder(0.4f, 4f, wyglad);
+        Cylinder cy1Chwyt = new Cylinder(0.3f, 4f, wyglad);
         Transform3D poz_cy1Chwyt = new Transform3D();
         poz_cy1Chwyt.set(new Vector3f(0.0f, 4.2f, 8.0f));
         TransformGroup trans_cy1Chwyt = new TransformGroup(poz_cy1Chwyt);
         trans_cy1Chwyt.addChild(cy1Chwyt);
-        
+
         transGrChwyt = new TransformGroup();
         transGrChwyt.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
         transGrChwyt.setCollidable(true);
         transGrChwyt.addChild(trans_cy1Chwyt);
         transGrObrot1.addChild(transGrChwyt);
-        BoundingSphere obszarKolizja = new BoundingSphere(new Point3d(), 2.0f);
+        BoundingSphere obszarKolizja = new BoundingSphere(new Point3d(), 1.9f);
         Kolizja kolizja = new Kolizja(cy1Chwyt, obszarKolizja);
         transGrChwyt.addChild(kolizja);
-        
+
         //krazek do przenoszenia
-        Cylinder krazek = new Cylinder(1.2f, 1.4f, wyglad);
+        Cylinder krazek = new Cylinder(1.2f, 0.9f, wygladKrazek);
         Transform3D poz_krazek = new Transform3D();
-        poz_krazek.set(new Vector3f(0.0f, 0.0f, 8.0f));
+        poz_krazek.set(new Vector3f(0.0f, 0.2f, 8.0f));
         TransformGroup trans_krazek = new TransformGroup(poz_krazek);
 
         trans_krazek.addChild(krazek);
-        
+
         transGrKrazek = new TransformGroup();
         transGrKrazek.setCollidable(true);
         transGrKrazek.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
