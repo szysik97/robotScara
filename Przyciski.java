@@ -68,7 +68,7 @@ public class Przyciski implements ActionListener {
                     pj.przyciskiDostepnosc(false);
 
                     pj.czas = new Timer();
-                    pj.czas.scheduleAtFixedRate(new ZadanieArduino(), 0, 50);
+                    pj.czas.scheduleAtFixedRate(new ZadanieArduino(pj), 0, 50);
                     pj.sposobSterowania.setText("Zmień sterowanie na: klawiatuta/GUI");
                 } else {
                     pj.sterowanieArduino = false;
