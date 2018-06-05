@@ -1,6 +1,5 @@
 const int chwytakGora = 2;
 const int chwytakDol = 3;
-const int wypuszczanie = 4;
 const int joystickRamie1 = 0;
 const int joystickRamie2 = 1;
 
@@ -8,7 +7,6 @@ void setup() {
   Serial.begin(9600);
   pinMode(chwytakGora, INPUT_PULLUP);
   pinMode(chwytakDol, INPUT_PULLUP);
-  pinMode(wypuszczanie, INPUT_PULLUP);
 }
 
 void loop() {
@@ -33,10 +31,6 @@ void loop() {
   
   else if(!digitalRead(chwytakDol))
     Serial.print(6);
-
-  else if(!digitalRead(wypuszczanie))
-    Serial.print(7);
-  
 
   delay(75);
 }
