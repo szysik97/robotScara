@@ -11,11 +11,14 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.util.Scanner;
 import java.util.Timer;
+import javax.media.j3d.AmbientLight;
 import javax.media.j3d.Appearance;
 import javax.media.j3d.BoundingSphere;
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Canvas3D;
 import javax.media.j3d.ColoringAttributes;
+import javax.media.j3d.DirectionalLight;
+import javax.media.j3d.Material;
 import javax.media.j3d.SpotLight;
 import javax.media.j3d.Transform3D;
 import javax.media.j3d.TransformGroup;
@@ -323,43 +326,64 @@ public class Projekt_JAVA extends JFrame {
     public BranchGroup nowaScena() {
         BranchGroup scena = new BranchGroup();
 
-        BoundingSphere granica = new BoundingSphere();
-
-        //dodanie swiatla
-        SpotLight swiatlo = new SpotLight(
-                new Color3f(1.0f, 1.0f, 1.0f), //kolor swiatla(biale)
-                new Point3f(1.0f, 1.0f, 1.0f), //pozycja reflektora/lampy
-                new Point3f(0.5f, 0.5f, 0.5f), //szybkosc rozpraszania swiatla
-                new Vector3f(0.0f, 0.0f, 0.0f), //wektor kierunku swiatla
-                (float) Math.PI, //kat stozka swiatla
-                50);                               //wsp.skupienia swiatla
-        swiatlo.setInfluencingBounds(granica);
-        scena.addChild(swiatlo);
-
-        //nowy material - robot
-        Appearance wyglad = new Appearance();
-        wyglad.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f,
-                ColoringAttributes.NICEST));
-
-        //nowy material - podloga
-        Appearance wygladPodloga = new Appearance();
-        wygladPodloga.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.0f,
-                ColoringAttributes.NICEST));
-
-        //nowy material - krazek
+        BoundingSphere granica = new BoundingSphere(new Point3d(0.0d,0.0d,0.0d), 100.0d);
+        
+        //swiatlo ambientowe i kierunkowe
+        Color3f ambientKolor = new Color3f(1.0f, 1.0f, 1.0f);
+        AmbientLight ambientSwiatlo = new AmbientLight(ambientKolor);
+        ambientSwiatlo.setInfluencingBounds(granica);
+        scena.addChild(ambientSwiatlo);
+        Color3f swiatloKolor = new Color3f(0.5f, 0.5f, 0.5f);
+        Vector3f swiatloKierunek = new Vector3f(4.0f, -7.0f, -12.0f);
+        DirectionalLight swiatloKierunkowe = new DirectionalLight(swiatloKolor, swiatloKierunek);
+        swiatloKierunkowe.setInfluencingBounds(granica); 
+        scena.addChild(swiatloKierunkowe); 
+  
+        //material robota
+        Material matRobot = new Material(); 
+        matRobot.setAmbientColor ( new Color3f( 0.0f, 0.30f, 0.35f ) );
+        matRobot.setDiffuseColor ( new Color3f( 0.0f, 0.30f, 0.50f ) );
+        matRobot.setSpecularColor ( new Color3f( 0.70f, 0.70f, 0.80f ) );
+        matRobot.setShininess( 2.4f );
+        
+        //material krazka
+        Material matKrazek = new Material(); 
+        matKrazek.setAmbientColor ( new Color3f( 0.30f, 0.30f, 0.55f ) );
+        matKrazek.setDiffuseColor ( new Color3f( 0.70f, 0.10f, 0.10f ) );
+        matKrazek.setSpecularColor ( new Color3f( 0.10f, 0.70f, 90.0f ) );
+        matKrazek.setShininess( 2.4f );
+        
+        //material podlogi
+        Material matPodloga = new Material(); 
+        matPodloga.setAmbientColor ( new Color3f( 0.30f, 0.10f, 0.25f ) );
+        matPodloga.setDiffuseColor ( new Color3f( 0.40f, 0.60f, 0.30f ) );
+        matPodloga.setSpecularColor ( new Color3f( 0.70f, 0.30f, 0.50f ) );
+        matPodloga.setShininess( 2.4f );
+        
+        //wyglad robota
+        Appearance wygladRobot = new Appearance();
+        wygladRobot.setMaterial(matRobot);
+        wygladRobot.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f, ColoringAttributes.SHADE_GOURAUD));
+        
+        //wyglad krazka
         Appearance wygladKrazek = new Appearance();
-        wygladKrazek.setColoringAttributes(new ColoringAttributes(0.8f, 0.0f, 0.1f,
-                ColoringAttributes.NICEST));
-
+        wygladKrazek.setMaterial(matKrazek);
+        wygladKrazek.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f, ColoringAttributes.SHADE_GOURAUD));
+        
+        //wyglad podlogi
+        Appearance wygladPodloga = new Appearance();
+        wygladPodloga.setMaterial(matPodloga);
+        wygladPodloga.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f, ColoringAttributes.SHADE_GOURAUD));
+        
         //utworzenie podstawy robota skladajacej sie z 2 cylindrow
-        Cylinder podstawa1 = new Cylinder(1.2f, 0.7f, wyglad);
+        Cylinder podstawa1 = new Cylinder(1.2f, 0.7f, wygladRobot);
         Transform3D poz_podstawy1 = new Transform3D();
         poz_podstawy1.set(new Vector3f(0.0f, 0.0f, 0.0f));
         TransformGroup transPods1 = new TransformGroup(poz_podstawy1);
         transPods1.addChild(podstawa1);
         scena.addChild(transPods1);
 
-        Cylinder podstawa2 = new Cylinder(0.45f, 5f, wyglad);
+        Cylinder podstawa2 = new Cylinder(0.45f, 5f, wygladRobot);
         Transform3D poz_podstawy2 = new Transform3D();
         poz_podstawy2.set(new Vector3f(0.0f, 2.8f, 0.0f));
         TransformGroup transPods2 = new TransformGroup(poz_podstawy2);
@@ -368,19 +392,19 @@ public class Projekt_JAVA extends JFrame {
 
         //utworzenie ramiena numer 1 skladajacego sie z
         //dwoch walcow oraz jednego prostopadloscianu
-        Cylinder cy1Ram1 = new Cylinder(0.6f, 0.7f, wyglad);
+        Cylinder cy1Ram1 = new Cylinder(0.6f, 0.7f, wygladRobot);
         Transform3D poz_cy1Ram1 = new Transform3D();
         poz_cy1Ram1.set(new Vector3f(0.0f, 5.0f, 0.0f));
         TransformGroup trans_cy1Ram1 = new TransformGroup(poz_cy1Ram1);
         trans_cy1Ram1.addChild(cy1Ram1);
 
-        Cylinder cy2Ram1 = new Cylinder(0.6f, 0.7f, wyglad);
+        Cylinder cy2Ram1 = new Cylinder(0.6f, 0.7f, wygladRobot);
         Transform3D poz_cy2Ram1 = new Transform3D();
         poz_cy2Ram1.set(new Vector3f(0.0f, 5.0f, 4.0f));
         TransformGroup trans_cy2Ram1 = new TransformGroup(poz_cy2Ram1);
         trans_cy2Ram1.addChild(cy2Ram1);
 
-        com.sun.j3d.utils.geometry.Box box1Ram1 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wyglad);
+        com.sun.j3d.utils.geometry.Box box1Ram1 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wygladRobot);
         Transform3D poz_box1Ram1 = new Transform3D();
         poz_box1Ram1.set(new Vector3f(0.0f, 5.0f, 2.0f));
         TransformGroup trans_box1Ram1 = new TransformGroup(poz_box1Ram1);
@@ -396,19 +420,19 @@ public class Projekt_JAVA extends JFrame {
 
         //utworzenie ramiena numer 2 skladajacego sie z
         //dwoch walcow oraz jednego prostopadloscianu
-        Cylinder cy1Ram2 = new Cylinder(0.6f, 0.7f, wyglad);
+        Cylinder cy1Ram2 = new Cylinder(0.6f, 0.7f, wygladRobot);
         Transform3D poz_cy1Ram2 = new Transform3D();
         poz_cy1Ram2.set(new Vector3f(0.0f, 4.3f, 4.0f));
         TransformGroup trans_cy1Ram2 = new TransformGroup(poz_cy1Ram2);
         trans_cy1Ram2.addChild(cy1Ram2);
 
-        Cylinder cy2Ram2 = new Cylinder(0.6f, 0.7f, wyglad);
+        Cylinder cy2Ram2 = new Cylinder(0.6f, 0.7f, wygladRobot);
         Transform3D poz_cy2Ram2 = new Transform3D();
         poz_cy2Ram2.set(new Vector3f(0.0f, 4.3f, 8.0f));
         TransformGroup trans_cy2Ram2 = new TransformGroup(poz_cy2Ram2);
         trans_cy2Ram2.addChild(cy2Ram2);
 
-        com.sun.j3d.utils.geometry.Box box1Ram2 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wyglad);
+        com.sun.j3d.utils.geometry.Box box1Ram2 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wygladRobot);
         Transform3D poz_box1Ram2 = new Transform3D();
         poz_box1Ram2.set(new Vector3f(0.0f, 4.3f, 6.0f));
         TransformGroup trans_box1Ram2 = new TransformGroup(poz_box1Ram2);
@@ -431,7 +455,7 @@ public class Projekt_JAVA extends JFrame {
         scena.addChild(trans_podloga);
 
         // utworzenie chwytaka
-        Cylinder cy1Chwyt = new Cylinder(0.3f, 4f, wyglad);
+        Cylinder cy1Chwyt = new Cylinder(0.3f, 4f, wygladRobot);
         Transform3D poz_cy1Chwyt = new Transform3D();
         poz_cy1Chwyt.set(new Vector3f(0.0f, 4.2f, 8.0f));
         TransformGroup trans_cy1Chwyt = new TransformGroup(poz_cy1Chwyt);
