@@ -2,6 +2,8 @@ package projekt_java;
 
 import com.sun.j3d.utils.behaviors.vp.OrbitBehavior;
 import com.sun.j3d.utils.geometry.Cylinder;
+import com.sun.j3d.utils.geometry.Sphere;
+import com.sun.j3d.utils.image.TextureLoader;
 import com.sun.j3d.utils.universe.SimpleUniverse;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -18,8 +20,11 @@ import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Canvas3D;
 import javax.media.j3d.ColoringAttributes;
 import javax.media.j3d.DirectionalLight;
+import javax.media.j3d.ImageComponent2D;
 import javax.media.j3d.Material;
 import javax.media.j3d.SpotLight;
+import javax.media.j3d.Texture;
+import javax.media.j3d.Texture2D;
 import javax.media.j3d.Transform3D;
 import javax.media.j3d.TransformGroup;
 import javax.swing.JButton;
@@ -338,52 +343,66 @@ public class Projekt_JAVA extends JFrame {
         DirectionalLight swiatloKierunkowe = new DirectionalLight(swiatloKolor, swiatloKierunek);
         swiatloKierunkowe.setInfluencingBounds(granica); 
         scena.addChild(swiatloKierunkowe); 
-  
-        //material robota
-        Material matRobot = new Material(); 
-        matRobot.setAmbientColor ( new Color3f( 0.0f, 0.30f, 0.35f ) );
-        matRobot.setDiffuseColor ( new Color3f( 0.0f, 0.30f, 0.50f ) );
-        matRobot.setSpecularColor ( new Color3f( 0.70f, 0.70f, 0.80f ) );
-        matRobot.setShininess( 2.4f );
+          
+        //tekstura robota
+        TextureLoader tl = new TextureLoader("t1.png",null);
+        ImageComponent2D obrazek = tl.getImage();
         
-        //material krazka
-        Material matKrazek = new Material(); 
-        matKrazek.setAmbientColor ( new Color3f( 0.30f, 0.30f, 0.55f ) );
-        matKrazek.setDiffuseColor ( new Color3f( 0.70f, 0.10f, 0.10f ) );
-        matKrazek.setSpecularColor ( new Color3f( 0.10f, 0.70f, 90.0f ) );
-        matKrazek.setShininess( 2.4f );
+        Texture2D robotTekstura1 = new Texture2D(Texture.BASE_LEVEL, Texture.RGBA, obrazek.getWidth(), obrazek.getHeight());
+        robotTekstura1.setImage(0, obrazek);
+        robotTekstura1.setBoundaryModeS(Texture.WRAP);
+        robotTekstura1.setBoundaryModeT(Texture.WRAP);
         
-        //material podlogi
-        Material matPodloga = new Material(); 
-        matPodloga.setAmbientColor ( new Color3f( 0.30f, 0.10f, 0.25f ) );
-        matPodloga.setDiffuseColor ( new Color3f( 0.40f, 0.60f, 0.30f ) );
-        matPodloga.setSpecularColor ( new Color3f( 0.70f, 0.30f, 0.50f ) );
-        matPodloga.setShininess( 2.4f );
+        tl = new TextureLoader("t2.jpg",null);
+        obrazek = tl.getImage();
+        
+        Texture2D robotTekstura2 = new Texture2D(Texture.BASE_LEVEL, Texture.RGBA, obrazek.getWidth(), obrazek.getHeight());
+        robotTekstura2.setImage(0, obrazek);
+        robotTekstura2.setBoundaryModeS(Texture.WRAP);
+        robotTekstura2.setBoundaryModeT(Texture.WRAP);
+        
+        //tekstura podlogi
+        tl = new TextureLoader("t3.jpg",null);
+        obrazek = tl.getImage();
+        
+        Texture2D podlogaTekstura = new Texture2D(Texture.BASE_LEVEL, Texture.RGBA, obrazek.getWidth(), obrazek.getHeight());
+        podlogaTekstura.setImage(0, obrazek);
+        podlogaTekstura.setBoundaryModeS(Texture.WRAP);
+        podlogaTekstura.setBoundaryModeT(Texture.WRAP);
+        
+        //tekstura krazka
+        tl = new TextureLoader("t4.png",null);
+        obrazek = tl.getImage();
+        
+        Texture2D krazekTekstura = new Texture2D(Texture.BASE_LEVEL, Texture.RGBA, obrazek.getWidth(), obrazek.getHeight());
+        krazekTekstura.setImage(0, obrazek);
+        krazekTekstura.setBoundaryModeS(Texture.WRAP);
+        krazekTekstura.setBoundaryModeT(Texture.WRAP);
         
         //wyglad robota
-        Appearance wygladRobot = new Appearance();
-        wygladRobot.setMaterial(matRobot);
-        wygladRobot.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f, ColoringAttributes.SHADE_GOURAUD));
+        Appearance wygladRobot1 = new Appearance();
+        wygladRobot1.setTexture(robotTekstura1);
+        
+        Appearance wygladRobot2 = new Appearance();
+        wygladRobot2.setTexture(robotTekstura2);
         
         //wyglad krazka
         Appearance wygladKrazek = new Appearance();
-        wygladKrazek.setMaterial(matKrazek);
-        wygladKrazek.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f, ColoringAttributes.SHADE_GOURAUD));
+        wygladKrazek.setTexture(krazekTekstura);
         
         //wyglad podlogi
         Appearance wygladPodloga = new Appearance();
-        wygladPodloga.setMaterial(matPodloga);
-        wygladPodloga.setColoringAttributes(new ColoringAttributes(0.0f, 0.2f, 0.5f, ColoringAttributes.SHADE_GOURAUD));
+        wygladPodloga.setTexture(podlogaTekstura);
         
         //utworzenie podstawy robota skladajacej sie z 2 cylindrow
-        Cylinder podstawa1 = new Cylinder(1.2f, 0.7f, wygladRobot);
+        Cylinder podstawa1 = new Cylinder(1.2f, 0.7f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot1);
         Transform3D poz_podstawy1 = new Transform3D();
         poz_podstawy1.set(new Vector3f(0.0f, 0.0f, 0.0f));
         TransformGroup transPods1 = new TransformGroup(poz_podstawy1);
         transPods1.addChild(podstawa1);
         scena.addChild(transPods1);
 
-        Cylinder podstawa2 = new Cylinder(0.45f, 5f, wygladRobot);
+        Cylinder podstawa2 = new Cylinder(0.45f, 5f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot1);
         Transform3D poz_podstawy2 = new Transform3D();
         poz_podstawy2.set(new Vector3f(0.0f, 2.8f, 0.0f));
         TransformGroup transPods2 = new TransformGroup(poz_podstawy2);
@@ -392,19 +411,19 @@ public class Projekt_JAVA extends JFrame {
 
         //utworzenie ramiena numer 1 skladajacego sie z
         //dwoch walcow oraz jednego prostopadloscianu
-        Cylinder cy1Ram1 = new Cylinder(0.6f, 0.7f, wygladRobot);
+        Cylinder cy1Ram1 = new Cylinder(0.6f, 0.7f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot2);
         Transform3D poz_cy1Ram1 = new Transform3D();
         poz_cy1Ram1.set(new Vector3f(0.0f, 5.0f, 0.0f));
         TransformGroup trans_cy1Ram1 = new TransformGroup(poz_cy1Ram1);
         trans_cy1Ram1.addChild(cy1Ram1);
 
-        Cylinder cy2Ram1 = new Cylinder(0.6f, 0.7f, wygladRobot);
+        Cylinder cy2Ram1 = new Cylinder(0.6f, 0.7f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot2);
         Transform3D poz_cy2Ram1 = new Transform3D();
         poz_cy2Ram1.set(new Vector3f(0.0f, 5.0f, 4.0f));
         TransformGroup trans_cy2Ram1 = new TransformGroup(poz_cy2Ram1);
         trans_cy2Ram1.addChild(cy2Ram1);
 
-        com.sun.j3d.utils.geometry.Box box1Ram1 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wygladRobot);
+        com.sun.j3d.utils.geometry.Box box1Ram1 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, com.sun.j3d.utils.geometry.Box.GENERATE_NORMALS| com.sun.j3d.utils.geometry.Box.GENERATE_TEXTURE_COORDS, wygladRobot2);
         Transform3D poz_box1Ram1 = new Transform3D();
         poz_box1Ram1.set(new Vector3f(0.0f, 5.0f, 2.0f));
         TransformGroup trans_box1Ram1 = new TransformGroup(poz_box1Ram1);
@@ -420,19 +439,19 @@ public class Projekt_JAVA extends JFrame {
 
         //utworzenie ramiena numer 2 skladajacego sie z
         //dwoch walcow oraz jednego prostopadloscianu
-        Cylinder cy1Ram2 = new Cylinder(0.6f, 0.7f, wygladRobot);
+        Cylinder cy1Ram2 = new Cylinder(0.6f, 0.7f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot2);
         Transform3D poz_cy1Ram2 = new Transform3D();
         poz_cy1Ram2.set(new Vector3f(0.0f, 4.3f, 4.0f));
         TransformGroup trans_cy1Ram2 = new TransformGroup(poz_cy1Ram2);
         trans_cy1Ram2.addChild(cy1Ram2);
 
-        Cylinder cy2Ram2 = new Cylinder(0.6f, 0.7f, wygladRobot);
+        Cylinder cy2Ram2 = new Cylinder(0.6f, 0.7f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot2);
         Transform3D poz_cy2Ram2 = new Transform3D();
         poz_cy2Ram2.set(new Vector3f(0.0f, 4.3f, 8.0f));
         TransformGroup trans_cy2Ram2 = new TransformGroup(poz_cy2Ram2);
         trans_cy2Ram2.addChild(cy2Ram2);
 
-        com.sun.j3d.utils.geometry.Box box1Ram2 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, wygladRobot);
+        com.sun.j3d.utils.geometry.Box box1Ram2 = new com.sun.j3d.utils.geometry.Box(0.3f, 0.3f, 1.5f, com.sun.j3d.utils.geometry.Box.GENERATE_NORMALS| com.sun.j3d.utils.geometry.Box.GENERATE_TEXTURE_COORDS, wygladRobot2);
         Transform3D poz_box1Ram2 = new Transform3D();
         poz_box1Ram2.set(new Vector3f(0.0f, 4.3f, 6.0f));
         TransformGroup trans_box1Ram2 = new TransformGroup(poz_box1Ram2);
@@ -447,7 +466,7 @@ public class Projekt_JAVA extends JFrame {
         transGrPodst.addChild(transGrObrot1);
 
         // utworzenie podlogi
-        Cylinder podloga = new Cylinder(10.0f, 0.2f, wygladPodloga);
+        Cylinder podloga = new Cylinder(10.0f, 0.2f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladPodloga);
         Transform3D poz_podloga = new Transform3D();
         poz_podloga.set(new Vector3f(0.0f, -0.35f, 0.0f));
         TransformGroup trans_podloga = new TransformGroup(poz_podloga);
@@ -455,7 +474,7 @@ public class Projekt_JAVA extends JFrame {
         scena.addChild(trans_podloga);
 
         // utworzenie chwytaka
-        Cylinder cy1Chwyt = new Cylinder(0.3f, 4f, wygladRobot);
+        Cylinder cy1Chwyt = new Cylinder(0.3f, 4f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladRobot1);
         Transform3D poz_cy1Chwyt = new Transform3D();
         poz_cy1Chwyt.set(new Vector3f(0.0f, 4.2f, 8.0f));
         TransformGroup trans_cy1Chwyt = new TransformGroup(poz_cy1Chwyt);
@@ -471,13 +490,13 @@ public class Projekt_JAVA extends JFrame {
         transGrChwyt.addChild(kolizja);
 
         // utworzenie krazka do przenoszenia dla robota
-        Cylinder krazek = new Cylinder(1.2f, 0.9f, wygladKrazek);
+        Cylinder krazek = new Cylinder(1.2f, 0.9f, Cylinder.GENERATE_NORMALS| Cylinder.GENERATE_TEXTURE_COORDS, wygladKrazek);
         Transform3D poz_krazek = new Transform3D();
         poz_krazek.set(new Vector3f(0.0f, 0.2f, 8.0f));
         TransformGroup trans_krazek = new TransformGroup(poz_krazek);
 
         trans_krazek.addChild(krazek);
-
+        
         transGrKrazek = new TransformGroup();
         transGrKrazek.setCollidable(true);
         transGrKrazek.setCapability(TransformGroup.ALLOW_TRANSFORM_WRITE);
